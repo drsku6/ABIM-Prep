@@ -1,0 +1,5 @@
+{
+  "name": "ABIM Board Master",
+  "description": "An AI-powered study assistant for medical residents preparing for the ABIM board exam. It generates structured algorithms and clinical vignettes to master complex topics.",
+  "requestFramePermissions": []
+}
