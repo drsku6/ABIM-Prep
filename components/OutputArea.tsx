@@ -3,6 +3,7 @@ import type { TabType, Content } from '../types';
 import { AlgorithmIcon } from './icons/AlgorithmIcon';
 import { VignetteIcon } from './icons/VignetteIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { RefreshIcon } from './icons/RefreshIcon';
 
 interface OutputAreaProps {
   algorithm: Content | null;
@@ -12,6 +13,7 @@ interface OutputAreaProps {
   isAlgorithmLoading: boolean;
   isVignettesLoading: boolean;
   onGenerateVignettes: () => void;
+  onRefreshVignettes: () => void;
   error: string | null;
 }
 
@@ -40,6 +42,7 @@ export const OutputArea: React.FC<OutputAreaProps> = ({
   isAlgorithmLoading,
   isVignettesLoading,
   onGenerateVignettes,
+  onRefreshVignettes,
   error,
 }) => {
   const [copyButtonText, setCopyButtonText] = useState('Copy');
@@ -105,7 +108,18 @@ export const OutputArea: React.FC<OutputAreaProps> = ({
         )}
       
       <div className="bg-white rounded-xl shadow-lg relative">
-        <div className="absolute top-4 right-6 z-10">
+        <div className="absolute top-4 right-6 z-10 flex items-center space-x-2">
+          {activeTab === 'vignettes' && vignettes && !isVignettesLoading && (
+            <button
+                onClick={onRefreshVignettes}
+                className="px-3 py-1.5 text-sm font-sans font-semibold text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-all duration-200 flex items-center shadow-sm border border-gray-200"
+                aria-label="Generate new vignettes"
+            >
+                <RefreshIcon className="h-4 w-4 mr-2" />
+                New Set
+            </button>
+          )}
+
           <button
             onClick={handleCopy}
             className="px-3 py-1.5 text-sm font-sans font-semibold text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-all duration-200 flex items-center shadow-sm border border-gray-200 disabled:opacity-50"

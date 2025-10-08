@@ -72,6 +72,28 @@ const App: React.FC = () => {
     }
   }, [topic, vignettes, isVignettesLoading]);
 
+  const handleRefreshVignettes = useCallback(async () => {
+    if (isVignettesLoading || !topic) return;
+
+    setIsVignettesLoading(true);
+    setError(null);
+    setVignettes(null); // Clear existing vignettes to trigger loader
+
+    try {
+      const result = await generateVignettes(topic);
+      setVignettes(result);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred during vignette generation.');
+      }
+      setVignettes(null); // Ensure vignettes are cleared on error
+    } finally {
+      setIsVignettesLoading(false);
+    }
+  }, [topic, isVignettesLoading]);
+
   const handleSendFollowUp = useCallback(async (message: string) => {
     if (!chatSession || !message.trim()) return;
 
@@ -135,6 +157,7 @@ const App: React.FC = () => {
         isAlgorithmLoading={isAlgorithmLoading}
         isVignettesLoading={isVignettesLoading}
         onGenerateVignettes={handleGenerateVignettes}
+        onRefreshVignettes={handleRefreshVignettes}
         error={error}
       />
       
