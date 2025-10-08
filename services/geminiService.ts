@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
 import type { Content } from "../types";
 import { getMasterAlgorithmPrompt } from "../prompts/masterAlgorithm";
 import { getVignetteBankPrompt } from "../prompts/vignetteBank";
@@ -21,19 +21,40 @@ const contentSchema = {
     required: ['html']
 };
 
-export const generateAlgorithmStream = async (topic: string, onUpdate: (chunk: string) => void) => {
+export const startChatAndGenerateAlgorithm = async (topic: string, onUpdate: (chunk: string) => void): Promise<Chat> => {
     try {
-        const response = await ai.models.generateContentStream({
+        const chat = ai.chats.create({
             model,
-            contents: getMasterAlgorithmPrompt(topic),
+            config: {
+                systemInstruction: "You are an Expert Medical Educator and ABIM Test Strategist. Your goal is to create high-yield, step-by-step thinking algorithms and answer follow-up questions for board preparation. Respond to follow up questions with clear, concise, well-formatted markdown.",
+            }
+        });
+
+        const response = await chat.sendMessageStream({
+            message: getMasterAlgorithmPrompt(topic)
         });
 
         for await (const chunk of response) {
             onUpdate(chunk.text);
         }
+        
+        return chat;
+
     } catch (error) {
-        console.error("Error streaming algorithm:", error);
+        console.error("Error starting chat and streaming algorithm:", error);
         throw new Error("Failed to generate the master algorithm. Please check your API key and try again.");
+    }
+};
+
+export const sendFollowUpMessageStream = async (chat: Chat, message: string, onUpdate: (chunk: string) => void) => {
+    try {
+        const response = await chat.sendMessageStream({ message });
+        for await (const chunk of response) {
+            onUpdate(chunk.text);
+        }
+    } catch (error) {
+        console.error("Error sending follow-up message:", error);
+        throw new Error("Failed to get a response for the follow-up question.");
     }
 };
 

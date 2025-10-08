@@ -8,3 +8,8 @@ export interface StudyGuide {
 }
 
 export type TabType = 'algorithm' | 'vignettes';
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  html: string;
+}
