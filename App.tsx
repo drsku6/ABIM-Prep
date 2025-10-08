@@ -1,10 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { InputArea } from './components/InputArea';
 import { OutputArea } from './components/OutputArea';
 import { FollowUpArea } from './components/FollowUpArea';
+import { HistoryArea } from './components/HistoryArea';
 import { startChatAndGenerateAlgorithm, generateVignettes, sendFollowUpMessageStream } from './services/geminiService';
-import type { Content, TabType, ChatMessage } from './types';
+import type { Content, TabType, ChatMessage, CachedResult } from './types';
 import type { Chat } from '@google/genai';
+
+const MAX_HISTORY_ITEMS = 7;
+const HISTORY_STORAGE_KEY = 'abimBoardMasterHistory';
+
 
 const App: React.FC = () => {
   const [topic, setTopic] = useState<string>('');
@@ -22,8 +27,56 @@ const App: React.FC = () => {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isFollowUpLoading, setIsFollowUpLoading] = useState<boolean>(false);
 
+  const [history, setHistory] = useState<CachedResult[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (storedHistory) {
+        setHistory(JSON.parse(storedHistory));
+      }
+    } catch (e) {
+      console.error("Failed to parse history from localStorage", e);
+      localStorage.removeItem(HISTORY_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (history.length > 0) {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+    }
+  }, [history]);
+
+  const handleSelectHistoryTopic = useCallback((topicToLoad: string) => {
+    const cachedItem = history.find(item => item.topic.toLowerCase() === topicToLoad.toLowerCase());
+    if (cachedItem) {
+      setError(null);
+      setVignettes(null);
+      setChatSession(null);
+      setChatHistory([]);
+      setIsAlgorithmLoading(false);
+      setActiveTab('algorithm');
+      
+      setTopic(cachedItem.topic);
+      setAlgorithm(cachedItem.algorithm);
+
+      setHistory(prev => {
+        const newHistory = prev.filter(h => h.topic.toLowerCase() !== topicToLoad.toLowerCase());
+        newHistory.unshift(cachedItem);
+        return newHistory;
+      });
+    }
+  }, [history]);
+
   const handleGenerateAlgorithm = useCallback(async () => {
-    if (!topic.trim()) return;
+    const trimmedTopic = topic.trim();
+    if (!trimmedTopic) return;
+
+    const existingItem = history.find(item => item.topic.toLowerCase() === trimmedTopic.toLowerCase());
+    if (existingItem) {
+      handleSelectHistoryTopic(existingItem.topic);
+      return;
+    }
 
     setIsAlgorithmLoading(true);
     setError(null);
@@ -33,26 +86,35 @@ const App: React.FC = () => {
     setChatSession(null);
     setChatHistory([]);
 
+    let finalAlgorithmHtml = '';
     try {
-      const chat = await startChatAndGenerateAlgorithm(topic, (chunk) => {
+      const chat = await startChatAndGenerateAlgorithm(trimmedTopic, (chunk) => {
+        finalAlgorithmHtml += chunk;
         setAlgorithm(prev => ({ html: (prev?.html || '') + chunk }));
       });
       setChatSession(chat);
+
+      const newHistoryItem: CachedResult = { topic: trimmedTopic, algorithm: { html: finalAlgorithmHtml } };
+      setHistory(prev => {
+          const newHistory = prev.filter(h => h.topic.toLowerCase() !== newHistoryItem.topic.toLowerCase());
+          newHistory.unshift(newHistoryItem);
+          return newHistory.slice(0, MAX_HISTORY_ITEMS);
+      });
+
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('An unknown error occurred during algorithm generation.');
       }
-      setAlgorithm(null); // Clear on error
+      setAlgorithm(null);
       setChatSession(null);
     } finally {
       setIsAlgorithmLoading(false);
     }
-  }, [topic]);
+  }, [topic, history, handleSelectHistoryTopic]);
 
   const handleGenerateVignettes = useCallback(async () => {
-    // Prevent re-fetching if vignettes exist, are loading, or there's no topic
     if (vignettes || isVignettesLoading || !topic) return;
 
     setIsVignettesLoading(true);
@@ -77,7 +139,7 @@ const App: React.FC = () => {
 
     setIsVignettesLoading(true);
     setError(null);
-    setVignettes(null); // Clear existing vignettes to trigger loader
+    setVignettes(null); 
 
     try {
       const result = await generateVignettes(topic);
@@ -88,7 +150,7 @@ const App: React.FC = () => {
       } else {
         setError('An unknown error occurred during vignette generation.');
       }
-      setVignettes(null); // Ensure vignettes are cleared on error
+      setVignettes(null);
     } finally {
       setIsVignettesLoading(false);
     }
@@ -148,6 +210,8 @@ const App: React.FC = () => {
         onGenerate={handleGenerateAlgorithm}
         isLoading={isAlgorithmLoading}
       />
+      
+      <HistoryArea items={history} onSelect={handleSelectHistoryTopic} />
 
       <OutputArea
         algorithm={algorithm}

@@ -13,3 +13,8 @@ export interface ChatMessage {
   role: 'user' | 'model';
   html: string;
 }
+
+export interface CachedResult {
+  topic: string;
+  algorithm: Content;
+}
