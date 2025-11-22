@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Chat } from "@google/genai";
-import type { Content } from "../types";
+import type { Content, ChatMessage } from "../types";
 import { getMasterAlgorithmPrompt } from "../prompts/masterAlgorithm";
 import { getVignetteBankPrompt } from "../prompts/vignetteBank";
 
@@ -21,12 +21,32 @@ const contentSchema = {
     required: ['html']
 };
 
+const chatSystemInstruction = "You are an Expert Medical Educator and ABIM Test Strategist. Your goal is to create high-yield, step-by-step thinking algorithms and answer follow-up questions for board preparation. Respond to follow up questions with clear, concise, well-formatted markdown.";
+
+export const recreateChatSession = (history: ChatMessage[]): Chat => {
+    const geminiHistory = history.map(msg => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: msg.html }]
+    }));
+
+    const chat = ai.chats.create({
+        model,
+        config: {
+            systemInstruction: chatSystemInstruction,
+        },
+        // @ts-ignore - The type expects specific roles, but 'user' and 'model' are valid.
+        history: geminiHistory
+    });
+    return chat;
+};
+
+
 export const startChatAndGenerateAlgorithm = async (topic: string, onUpdate: (chunk: string) => void): Promise<Chat> => {
     try {
         const chat = ai.chats.create({
             model,
             config: {
-                systemInstruction: "You are an Expert Medical Educator and ABIM Test Strategist. Your goal is to create high-yield, step-by-step thinking algorithms and answer follow-up questions for board preparation. Respond to follow up questions with clear, concise, well-formatted markdown.",
+                systemInstruction: chatSystemInstruction,
             }
         });
 

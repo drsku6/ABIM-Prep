@@ -14,7 +14,11 @@ export interface ChatMessage {
   html: string;
 }
 
-export interface CachedResult {
+export interface Session {
+  id: string;
+  title: string;
   topic: string;
-  algorithm: Content;
+  algorithm: Content | null;
+  vignettes: Content | null;
+  chatHistory: ChatMessage[];
 }
